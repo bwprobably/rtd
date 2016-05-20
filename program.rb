@@ -3,81 +3,63 @@ require 'google/transit/gtfs-realtime.pb'
 require 'net/http'
 require 'uri'
 require 'ap'
+require "sqlite3"
 
-def print_separator
-	puts '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~'
+db = SQLite3::Database.open 'schedule.db'
+
+# trips = "select trips.trip_id from routes
+# 	inner join trips on trips.route_id = routes.route_id
+# 	where routes.route_id = 'FF3'
+# 	and (trips.service_id = 'MT' or trips.service_id = 'FR' or trips.service_id = 'WK')
+# 	order by trips.trip_id;"
+# trips = db.execute(trips)
+
+routes = Hash.new
+data = File.read('realtime/VehiclePosition.pb')
+feed = Transit_realtime::FeedMessage.decode(data)
+for e in feed.entity do
+  if !defined?(e.vehicle.trip.route_id).nil?
+    route_id = e.vehicle.trip.route_id
+    if routes.has_key?(route_id)
+      routes[route_id].append(e.vehicle.trip)
+    else
+      routes[route_id] = []
+      routes[route_id].append(e.vehicle.trip)
+    end
+  end
+
 end
 
-def find_in_data (data, search_string, contains=true)
-	lines = []
-
-	data.each_line do |line|
-		if contains && line.include?(search_string)
-			lines.push(line)
-		elsif line.start_with?(search_string)
-			lines.push(line)
-		end
-	end
-	return lines
+routes['FF1'].select{|trip| trip.direction_id = 0}.each do |trip|
+  puts trip.trip_id
 end
 
-class DynamicDataList
-	attr_accessor :list
-	def initialize(data, schema)
-		@list = []
-		schema = schema.delete!("\r\n")
-		data.each do |route|		
-			route = route.split(',')	
-			hash = Hash.new
-			count = 0
-			schema.split(',').each do |property|
-				hash[property] = route[count]
-				count += 1
-			end
-			@list.append(hash)	
-		end
-	end
-	def to_s
-		ap @list
-	end
-end
 
-search_route = 'FF3'
-search_stop = 'US 36 & Sheridan Station Gate C'
-search_destination = 'Union Station'
-
-# find route information
-data = File.read('schedule/routes.txt')
-route_data = find_in_data(data, search_route, false)
-routes = DynamicDataList.new(route_data, data.lines.first)
-ap routes.list
-
-# find stop information
-data = File.read('schedule/stops.txt')
-stop_data = find_in_data(data, search_stop)
-stops = DynamicDataList.new(stop_data, data.lines.first)
-ap stops.list
-
-# find trip information to destination
-data = File.read('schedule/trips.txt')
-trip_data = find_in_data(data, search_route)
-trips = DynamicDataList.new(trip_data, data.lines.first)
-trips.list.delete_if do |trip|
-	if trip['trip_headsign'] != search_destination
-		true
-	end
-end
-
-trip_ids = [] 
-trips.list.each{ |t| trip_ids.push(t['trip_id'])}
-
-# find stop_time information
-data = File.read('schedule/stop_times.txt')
-stop_time_data = find_in_data(data, trip_ids.first, false)
-stop_times = DynamicDataList.new(stop_time_data, data.lines.first)
-
-print 'trip_id: ', trip_ids.first, "\n"
-stop_times.list.each{|s| 
-	print 'stop_id: ', s['stop_id'], "\n  "
-	print s['arrival_time'], '-', s['departure_time'], "\n" 
-}
+# data = File.read('realtime2/TripUpdate.pb')
+# feed = Transit_realtime::FeedMessage.decode(data)
+#
+# routes = Hash.new
+# for e in feed.entity do
+#   route_id = e.trip_update.trip.route_id
+#
+#   if routes.has_key?(route_id)
+# 		routes[route_id] += 1
+# 	else
+#     routes[route_id] = 1
+#   end
+#
+#
+#
+#   #
+#   # if route_id == '101'
+#   #   trip_id = e.trip_update.trip.trip_id
+# 		# print 'route_id: ', route_id, "\n"
+#   #   print 'trip_id: ', trip_id, "\n"
+# 		# stop_id = e.trip_update.stop_time_update[0].stop_id
+#   #   arrival = Time.at(e.trip_update.stop_time_update[0].arrival.time)
+#   #   print 'stop_id: ', stop_id, "\n"
+# 		# print 'arrival: ', arrival, "\n"
+#   #   break
+#   # end
+# end
+# ap routes

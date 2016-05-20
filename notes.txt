@@ -1,0 +1,70 @@
+route_id = 101E
+	PRAGMA table_info(routes);
+	select * from routes where route_short_name = 'E';
+
+trips
+	PRAGMA table_info(trips);
+
+	select trips.trip_id from routes 
+	inner join trips on trips.route_id = routes.route_id
+	where routes.route_short_name = 'E'
+	and trips.direction_id = 0 
+	and (trips.service_id = 'MT' or trips.service_id = 'FR')
+	order by trips.trip_id;
+
+stops = 34009 (orchard)
+	select stop_id from stops where stop_name = 'Orchard Station' and stop_desc = 'Vehicles Travelling North';
+
+stop_times
+	PRAGMA table_info(stop_times);
+
+	select 
+	trips.trip_id,
+	trips.service_id, trips.trip_headsign, 
+	stops.stop_name, stops.stop_desc,
+	stop_times.arrival_time
+	from stops 
+	INNER JOIN stop_times on stop_times.stop_id = stops.stop_id
+	INNER JOIN trips on trips.trip_id = stop_times.trip_id
+	where stops.stop_name = 'Orchard Station' 
+	and stops.stop_desc = 'Vehicles Travelling North'
+	and stop_times.arrival_time > '16:15:00'
+	and stop_times.arrival_time < '16:20:00'
+	order by stop_times.arrival_time;
+
+1463530761
+Wed, 18 May 2016 00:19:21 GMT
+5/17/2016, 6:19:21 PM GMT-6:00 DST
+
+	select 
+	trips.trip_id,
+	trips.service_id, trips.trip_headsign, 
+	stops.stop_name, stops.stop_desc,
+	stop_times.arrival_time
+	from stops 
+	INNER JOIN stop_times on stop_times.stop_id = stops.stop_id
+	INNER JOIN trips on trips.trip_id = stop_times.trip_id
+	where 
+	stop_times.arrival_time > '19:15:00'
+	and stop_times.arrival_time < '19:20:00'
+	order by stop_times.arrival_time;
+
+	select 
+	trips.* 
+	from trips 
+	where 
+	trips.trip_id = '109873747';
+
+PRAGMA table_info(stops);
+
+
+select stop_times.stop_id, stop_times.arrival_time, stops.stop_name
+from stop_times 
+INNER JOIN stops on stops.stop_id = stop_times.stop_id
+where trip_id = '109873747';
+
+
+
+
+
+

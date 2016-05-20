@@ -2,7 +2,7 @@ require "sqlite3"
 
 if File.exist?('schedule.db')
   puts 'database exists, aborting'
-  return
+  exit
 end
 
 db = SQLite3::Database.new 'schedule.db'
