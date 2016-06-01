@@ -95,7 +95,8 @@ end
 # get stop info
 #   like name and direction
 def get_stop_info(name, direction)
-  sql = "select stop_id from stops where stop_name like '%#{name}%' and stop_desc like '%#{direction}%' "
+  # sql = "select stop_id from stops where stop_name like '%#{name}%' and stop_desc like '%#{direction}%' "
+  sql = "select stop_id from stops where stop_name like '%#{name}%'"
   return $db.execute(sql)
 end
 
@@ -125,15 +126,15 @@ end
 # NEEDS IMPROVEMENT. STOP MAY NOT BE HEADSIGN BUT MID-STEP during trip
 #   must check all stops not just final stop
 def heading_to_destination?(trip_id, destination)
-  sql = "select trip_headsign from trips where trip_id = #{trip_id}"
-  sql += " and service_id = 'WK'"
+  # sql = "select * from trips where trip_id = #{trip_id}"
+  # sql += " and service_id = 'WK'"
+
+  sql = "select * from stop_times INNER JOIN stops on stop_times.stop_id = stops.stop_id";
+  sql += " where stop_times.trip_id = '#{trip_id}' and stops.stop_name like '%#{destination}%'";
+
   result = $db.execute(sql)
 
-  if result[0].nil?
-    return false
-  end
-
-  return result[0][0].include?(destination) #cleanup
+  return result
 end
 
 # load settings
@@ -151,6 +152,9 @@ settings['morning'].each{|s|
   puts "'#{from}' to '#{to}' at ~#{time.strftime("%H:%M")}"
 
   # get stop(s) for starting point
+  # this is a really inefficient way to do this
+  # I shouldn't be checking all stops, but only stops involved in my trip's destination
+  # Little tricky to ask
   stops = get_stop_info(from, dir)
 
   stops.each{|s|
@@ -162,12 +166,27 @@ settings['morning'].each{|s|
       trip_id = t[0]
       arrival_time = t[1]
 
-      # pay attention to trips heading to destination
-      if heading_to_destination?(trip_id, to) #or true
-        info = get_trip_info(trip_id)
-        route_id = info[0]
-        printf "%-5s %s\n", route_id, arrival_time[0..-4]
+        result = heading_to_destination?(trip_id, to)
+
+      if !result[0].nil?
+        trip_info = get_trip_info(trip_id)
+        route_id = trip_info[0]
+        day = trip_info[1];
+
+        if day != 'SA' and day != 'SU'
+          printf "(#{trip_id}) %-5s %s #{day}\n", route_id, arrival_time[0..-4]
+        end
+
       end
+
+      # pay attention to trips heading to destination
+      # if trip_id == '109891593' and heading_to_destination?(trip_id, to, info)
+      #
+      #   #info = get_trip_info(trip_id)
+      #   ap info
+      #   route_id = info[0]
+      #   printf "#{trip_id} %-5s %s\n", route_id, arrival_time[0..-4]
+      # end
     }
   }
   puts
