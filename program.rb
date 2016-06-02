@@ -171,6 +171,9 @@ settings['morning'].each{|s|
   # Little tricky to ask
   stops = get_stop_info(from, dir)
 
+  ap stops
+  exit
+
   stops.each{|s|
     stop_id = s[0]
 
