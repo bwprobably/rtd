@@ -104,7 +104,7 @@ end
 #   buffer before/after a few minutes
 def get_trips_near_time(stop_id, time)
   time = Time.at(time)
-  buffer = 600
+  buffer = 1000
   earlyTimeBuffer = (time-buffer).strftime("%H:%M:%S")
   lateTimeBuffer = (time+buffer).strftime("%H:%M:%S")
 
@@ -125,9 +125,10 @@ end
 # check if trip is heading to destination
 # NEEDS IMPROVEMENT. STOP MAY NOT BE HEADSIGN BUT MID-STEP during trip
 #   must check all stops not just final stop
-def heading_to_destination?(trip_id, destination)
+def heading_to_destination?(trip_id, destination, dir)
   # sql = "select * from trips where trip_id = #{trip_id}"
   # sql += " and service_id = 'WK'"
+
 
   sql = "select * from stop_times INNER JOIN stops on stop_times.stop_id = stops.stop_id";
   sql += " where stop_times.trip_id = '#{trip_id}' and stops.stop_name like '%#{destination}%'";
@@ -141,12 +142,25 @@ end
 fullPath = "./"
 settings = YAML.load_file(fullPath+'settings.yml')
 
+$favorite_routes = settings['favorites'].split(',')
+
 settings['morning'].each{|s|
   # parse settings
   from = s[1]['from']
   to = s[1]['to']
   dir = s[1]['direction']
   time = s[1]['time']
+
+  case dir
+    when 'South'
+      dir = '1'
+    when 'North'
+      dir = '0'
+    when 'West'
+      dir = '1'
+    when 'East'
+      dir = '0'
+  end
 
   # checking...
   puts "'#{from}' to '#{to}' at ~#{time.strftime("%H:%M")}"
@@ -162,31 +176,31 @@ settings['morning'].each{|s|
 
     # get trips near time
     trips = get_trips_near_time(stop_id, time)
+
     trips.each{ |t|
+
       trip_id = t[0]
       arrival_time = t[1]
 
-        result = heading_to_destination?(trip_id, to)
+      trip_info = get_trip_info(trip_id)
+      route_id = trip_info[0]
 
-      if !result[0].nil?
-        trip_info = get_trip_info(trip_id)
-        route_id = trip_info[0]
-        day = trip_info[1];
+      if dir == trip_info[4] and $favorite_routes.include?(route_id)
 
-        if day != 'SA' and day != 'SU'
-          printf "(#{trip_id}) %-5s %s #{day}\n", route_id, arrival_time[0..-4]
+        result = heading_to_destination?(trip_id, to, dir)
+
+        if !result[0].nil?
+          # trip_info = get_trip_info(trip_id)
+          # route_id = trip_info[0]
+          day = trip_info[1];
+
+          if day != 'SA' and day != 'SU'
+            printf "(#{trip_id}) %-5s %s #{day}\n", route_id, arrival_time[0..-4]
+          end
+
         end
 
       end
-
-      # pay attention to trips heading to destination
-      # if trip_id == '109891593' and heading_to_destination?(trip_id, to, info)
-      #
-      #   #info = get_trip_info(trip_id)
-      #   ap info
-      #   route_id = info[0]
-      #   printf "#{trip_id} %-5s %s\n", route_id, arrival_time[0..-4]
-      # end
     }
   }
   puts
