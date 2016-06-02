@@ -102,11 +102,22 @@ end
 
 # get trips at stop_id near time
 #   buffer before/after a few minutes
-def get_trips_near_time(stop_id, time)
+def get_trips_near_time(stop_id, time, type)
   time = Time.at(time)
   buffer = 1000
+
+  case type
+    when 'bus'
+      buffer = 600
+      lateTimeBuffer = (time+buffer*2).strftime("%H:%M:%S")
+
+    when 'train'
+      buffer = 1000
+      lateTimeBuffer = (time+buffer*2).strftime("%H:%M:%S")
+
+  end
+
   earlyTimeBuffer = (time-buffer).strftime("%H:%M:%S")
-  lateTimeBuffer = (time+buffer).strftime("%H:%M:%S")
 
   sql = "select trip_id, arrival_time from stop_times where stop_id = '#{stop_id}' "
   sql += "and arrival_time >= '#{earlyTimeBuffer}' and arrival_time <= '#{lateTimeBuffer}'"
@@ -144,12 +155,26 @@ settings = YAML.load_file(fullPath+'settings.yml')
 
 $favorite_routes = settings['favorites'].split(',')
 
+prior_time = ''
+
 settings['morning'].each{|s|
   # parse settings
   from = s[1]['from']
   to = s[1]['to']
   dir = s[1]['direction']
   time = s[1]['time']
+  type = s[1]['type']
+
+  if time.nil?
+    time_after = s[1]['time_after']
+    time = prior_time + time_after
+    prior_time = time
+  else
+    prior_time = time
+  end
+
+
+
 
   case dir
     when 'South'
@@ -171,14 +196,13 @@ settings['morning'].each{|s|
   # Little tricky to ask
   stops = get_stop_info(from, dir)
 
-  ap stops
-  exit
+  vehicles = []
 
   stops.each{|s|
     stop_id = s[0]
 
     # get trips near time
-    trips = get_trips_near_time(stop_id, time)
+    trips = get_trips_near_time(stop_id, time, type)
 
     trips.each{ |t|
 
@@ -197,8 +221,9 @@ settings['morning'].each{|s|
           # route_id = trip_info[0]
           day = trip_info[1];
 
-          if day != 'SA' and day != 'SU'
-            printf "(#{trip_id}) %-5s %s #{day}\n", route_id, arrival_time[0..-4]
+          if day != 'SA' and day != 'SU' and day != 'FR'
+            # printf "(#{trip_id}) %-5s %s #{day}\n", route_id, arrival_time[0..-4]
+            vehicles.append([trip_id, route_id, arrival_time[0..-4], day])
           end
 
         end
@@ -206,6 +231,18 @@ settings['morning'].each{|s|
       end
     }
   }
+
+  vehicles = vehicles.sort_by{|v| v[2]}
+
+  vehicles.each{|v|
+    v.each{
+      |p|
+      printf "%-4s ", p
+    }
+    puts
+  }
+
+
   puts
 }
 
