@@ -2,7 +2,7 @@ require 'protobuf'
 require 'google/transit/gtfs-realtime.pb'
 require 'net/http'
 require 'uri'
-require 'ap'
+require "awesome_print"
 require "sqlite3"
 require 'yaml'
 
@@ -49,7 +49,7 @@ def parse_live_data()
 
   # parse vehicle positioning
   $trip_live_data = Hash.new
-  data = File.read(vehicleFile)
+  data = File.open(vehicleFile, 'rb') { |io| io.read }
   feed = Transit_realtime::FeedMessage.decode(data)
   for e in feed.entity do
     if defined?(e.vehicle.trip.trip_id)
@@ -66,7 +66,7 @@ def parse_live_data()
 
   # parse trip updates
   $trip_live_data_updates = Hash.new
-  data = File.read(tripFile)
+  data = File.open(tripFile, 'rb') { |io| io.read }
   feed = Transit_realtime::FeedMessage.decode(data)
   for e in feed.entity do
     if defined?(e.trip_update.trip.trip_id)
@@ -121,7 +121,6 @@ def get_trips_near_time(stop_id, time, type)
     when 'train'
       buffer = 1000
       lateTimeBuffer = (time+buffer*2).strftime("%H:%M:%S")
-
   end
 
   earlyTimeBuffer = (time-buffer).strftime("%H:%M:%S")
