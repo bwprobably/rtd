@@ -116,7 +116,7 @@ def get_trips_near_time(stop_id, time, type)
   case type
     when 'bus'
       buffer = 600
-      lateTimeBuffer = (time+buffer*2).strftime("%H:%M:%S")
+      lateTimeBuffer = (time+buffer*3).strftime("%H:%M:%S")
 
     when 'train'
       buffer = 1000
@@ -155,6 +155,21 @@ def heading_to_destination?(trip_id, destination, dir)
   return result
 end
 
+def print_vehicle_info(v, count)
+  v.each{
+      |p|
+
+    if count == 2
+      printf "%-4s ", p
+    elsif count == 0
+      printf "(%-4s) ", p
+    else
+      printf "%-4s ", p
+    end
+    count += 1
+  }
+end
+
 # load settings
 fullPath = "./"
 settings = YAML.load_file(fullPath+'settings.yml')
@@ -163,8 +178,7 @@ $favorite_routes = settings['favorites'].split(',')
 parse_live_data()
 
 
-
-
+# current_time = Time.now
 
 
 prior_time = ''
@@ -176,13 +190,19 @@ settings['morning'].each{|s|
   time = s[1]['time']
   type = s[1]['type']
 
+  # if !time.nil?
+  #   time = current_time
+  # end
+
   if time.nil?
     time_after = s[1]['time_after']
-    time = prior_time + time_after
+    time = prior_time + time_after*60 #time in minutes
     prior_time = time
   else
     prior_time = time
   end
+
+
 
 
 
@@ -200,6 +220,15 @@ settings['morning'].each{|s|
 
   # checking...
   puts "'#{from}' to '#{to}' at ~#{time.strftime("%H:%M")}"
+
+  # next
+
+
+
+
+
+
+
 
   # get stop(s) for starting point
   # this is a really inefficient way to do this
@@ -248,42 +277,68 @@ settings['morning'].each{|s|
   vehicles.each{|v|
     trip_id = v[0]
     count = 0
-    v.each{
-      |p|
 
-      if count == 2
-        printf "at %-4s ", p
-      elsif count == 0
-        printf "(%-4s) ", p
-      else
-        printf "%-4s ", p
-      end
-
-
-
-      count += 1
-    }
+    if type == 'train'
+      print_vehicle_info(v, count)
+      puts
+    end
 
     if type == 'bus' and !$trip_live_data[trip_id].nil?
       v_id = $trip_live_data[trip_id][0]['vehicle']['label']
       time_stamp = $trip_live_data[trip_id][0]['vehicle']['timestamp']
-      print "\n    LIVE: #{Time.at(time_stamp).strftime("%l:%M%p")} "
+
       count = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'].size
       sequence = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_sequence']
       last_sequnce = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'][count-1]['stop_sequence']
-      print "(#{sequence}/#{last_sequnce}) "
+
 
       stop_id = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_id']
       stop_info = get_stop_info_all(stop_id)
+      stop_name = stop_info[1]
 
-      print stop_info[1]
+      if stop_name.include?(to)
+        next
+        # puts "\n    PAST STOP"
+      end
+
+
+      print_vehicle_info(v, count)
+
+
+      # v.each{
+      #     |p|
+      #
+      #   if count == 2
+      #     printf "%-4s ", p
+      #   elsif count == 0
+      #     printf "(%-4s) ", p
+      #   else
+      #     printf "%-4s ", p
+      #   end
+      #   count += 1
+      # }
+      print "\n    LIVE: #{Time.at(time_stamp).strftime("%l:%M%p")} "
+      print "(#{sequence}/#{last_sequnce}) "
+      print stop_name
+
+      if stop_name.include?(from)
+        print "\n    CURRENTLY AT STOP"
+      end
+      puts
+
+
+
+
+
+
+
 
     end
 
 
 
     # exit
-    puts
+    # puts
   }
 
   puts
