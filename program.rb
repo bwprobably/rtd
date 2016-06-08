@@ -2,8 +2,8 @@ require 'protobuf'
 require 'google/transit/gtfs-realtime.pb'
 require 'net/http'
 require 'uri'
-require "awesome_print"
-require "sqlite3"
+require 'awesome_print'
+require 'sqlite3'
 require 'yaml'
 
 $db = SQLite3::Database.open 'schedule.db'
