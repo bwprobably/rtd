@@ -14,6 +14,21 @@ def get_stop_info_all(stop_id)
   return $db.execute("select * from stops where stop_id = #{stop_id}")[0]
 end
 
+def time_to_str(time)
+  time = time.split(':')
+  hours = time[0].to_i
+  min = time[1]
+  am_pm = 'AM'
+
+  if(hours > 12)
+    am_pm = 'PM'
+    hours -= 12
+  end
+
+  return "#{hours}:#{min}#{am_pm}"
+
+end
+
 # get trip update if existing for vehicle
 #   from live vehicle and trips
 def get_updates(v, trips)
@@ -115,8 +130,8 @@ def get_trips_near_time(stop_id, time, type)
 
   case type
     when 'bus'
-      buffer = 600
-      lateTimeBuffer = (time+buffer*3).strftime("%H:%M:%S")
+      buffer = 400
+      lateTimeBuffer = (time+buffer*4).strftime("%H:%M:%S")
 
     when 'train'
       buffer = 1000
@@ -159,10 +174,12 @@ def print_vehicle_info(v, count)
   v.each{
       |p|
 
-    if count == 2
-      printf "%-4s ", p
-    elsif count == 0
-      printf "(%-4s) ", p
+
+
+    if count == 2 #time
+      printf "%-4s ", time_to_str(p)
+    elsif count == 0 #trip_id
+      # printf "(%-4s) ", p
     else
       printf "%-4s ", p
     end
@@ -181,8 +198,10 @@ parse_live_data()
 # current_time = Time.now
 
 
+
 prior_time = ''
-settings['morning'].each{|s|
+settings['evening'].each{|s|
+
   # parse settings
   from = s[1]['from']
   to = s[1]['to']
@@ -219,7 +238,7 @@ settings['morning'].each{|s|
   end
 
   # checking...
-  puts "'#{from}' to '#{to}' at ~#{time.strftime("%H:%M")}"
+  puts "'#{from}' to '#{to}' at ~#{time_to_str(time.strftime("%H:%M"))}"
 
   # next
 
@@ -278,7 +297,7 @@ settings['morning'].each{|s|
     trip_id = v[0]
     count = 0
 
-    if type == 'train'
+    if type == 'train' or type == 'bus'
       print_vehicle_info(v, count)
       puts
     end
