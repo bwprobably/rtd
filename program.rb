@@ -9,6 +9,9 @@ require "./live_data"
 
 schedule = Schedule.new
 live_data = Live_Data.new
+settings = Live_Data.new
+
+exit
 
 def time_to_str(time)
   time = time.split(':')
@@ -41,6 +44,7 @@ def print_vehicle_info(v, count)
     count += 1
   }
 end
+
 
 # load settings
 fullPath = "./"
