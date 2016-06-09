@@ -3,16 +3,10 @@ require 'google/transit/gtfs-realtime.pb'
 require 'net/http'
 require 'uri'
 require 'awesome_print'
-require 'sqlite3'
 require 'yaml'
+require "./schedule"
 
-$db = SQLite3::Database.open 'schedule.db'
-
-# get stop info from scheduling data
-#   from stop_id
-def get_stop_info_all(stop_id)
-  return $db.execute("select * from stops where stop_id = #{stop_id}")[0]
-end
+schedule = Schedule.new
 
 def time_to_str(time)
   time = time.split(':')
@@ -42,7 +36,7 @@ def get_updates(v, trips)
 
       t.trip_update.stop_time_update.each{|u|
         stop_id = u.stop_id
-        puts "   Stop: #{get_stop_info(stop_id, "")[1]}"
+        puts "   Stop: #{schedule.get_stop_info_by_name(stop_id, "")[1]}"
         puts "     Arrival: #{Time.at(u.arrival.time).strftime("%l:%M%p %m-%e-%y ")}"
         trip_count += 1
 
@@ -105,7 +99,7 @@ def parse_live_data()
   #     puts "vehicle id: #{v.id} (#{v.vehicle.vehicle.id})"
   #     puts "   trip_id: #{v.vehicle.trip.trip_id}"
   #     # puts "   direction_id: #{v.vehicle.trip.direction_id}"
-  #     #puts "   Stop: #{get_stop_info(stop_id)[1]}"
+  #     #puts "   Stop: #{schedule.get_stop_info_by_name(stop_id)[1]}"
   #     puts "   gps: #{v.vehicle.position.latitude},#{v.vehicle.position.longitude}"
   #     puts "   status: #{v.vehicle.current_status}"
   #     get_updates(v, $trip_live_data_updates)
@@ -114,61 +108,11 @@ def parse_live_data()
   # end
 end
 
-# get stop info
-#   like name and direction
-def get_stop_info(name, direction)
-  # sql = "select stop_id from stops where stop_name like '%#{name}%' and stop_desc like '%#{direction}%' "
-  sql = "select stop_id from stops where stop_name like '%#{name}%'"
-  return $db.execute(sql)
-end
-
-# get trips at stop_id near time
-#   buffer before/after a few minutes
-def get_trips_near_time(stop_id, time, type)
-  time = Time.at(time)
-  buffer = 1000
-
-  case type
-    when 'bus'
-      buffer = 400
-      lateTimeBuffer = (time+buffer*4).strftime("%H:%M:%S")
-
-    when 'train'
-      buffer = 1000
-      lateTimeBuffer = (time+buffer*2).strftime("%H:%M:%S")
-  end
-
-  earlyTimeBuffer = (time-buffer).strftime("%H:%M:%S")
-
-  sql = "select trip_id, arrival_time from stop_times where stop_id = '#{stop_id}' "
-  sql += "and arrival_time >= '#{earlyTimeBuffer}' and arrival_time <= '#{lateTimeBuffer}'"
-  sql += " order by arrival_time"
-  return $db.execute(sql)
-
-end
-
-# get trip info
-#   from trip_id
-def get_trip_info(trip_id)
-  sql = "select * from trips where trip_id = #{trip_id}"
-  return $db.execute(sql)[0]
-end
-
-# check if trip is heading to destination
-# NEEDS IMPROVEMENT. STOP MAY NOT BE HEADSIGN BUT MID-STEP during trip
-#   must check all stops not just final stop
-def heading_to_destination?(trip_id, destination, dir)
-  # sql = "select * from trips where trip_id = #{trip_id}"
-  # sql += " and service_id = 'WK'"
 
 
-  sql = "select * from stop_times INNER JOIN stops on stop_times.stop_id = stops.stop_id";
-  sql += " where stop_times.trip_id = '#{trip_id}' and stops.stop_name like '%#{destination}%'";
 
-  result = $db.execute(sql)
 
-  return result
-end
+
 
 def print_vehicle_info(v, count)
   v.each{
@@ -253,7 +197,7 @@ settings['evening'].each{|s|
   # this is a really inefficient way to do this
   # I shouldn't be checking all stops, but only stops involved in my trip's destination
   # Little tricky to ask
-  stops = get_stop_info(from, dir)
+  stops = schedule.get_stop_info_by_name(from, dir)
 
   vehicles = []
 
@@ -261,22 +205,22 @@ settings['evening'].each{|s|
     stop_id = s[0]
 
     # get trips near time
-    trips = get_trips_near_time(stop_id, time, type)
+    trips = schedule.get_trips_near_time(stop_id, time, type)
 
     trips.each{ |t|
 
       trip_id = t[0]
       arrival_time = t[1]
 
-      trip_info = get_trip_info(trip_id)
+      trip_info = schedule.get_trip_info(trip_id)
       route_id = trip_info[0]
 
       if dir == trip_info[4] and $favorite_routes.include?(route_id)
 
-        result = heading_to_destination?(trip_id, to, dir)
+        result = schedule.heading_to_destination?(trip_id, to, dir)
 
         if !result[0].nil?
-          # trip_info = get_trip_info(trip_id)
+          # trip_info = schedule.get_trip_info(trip_id)
           # route_id = trip_info[0]
           day = trip_info[1];
 
@@ -312,7 +256,7 @@ settings['evening'].each{|s|
 
 
       stop_id = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_id']
-      stop_info = get_stop_info_all(stop_id)
+      stop_info = schedule.get_stop_info_by_id(stop_id)
       stop_name = stop_info[1]
 
       if stop_name.include?(to)

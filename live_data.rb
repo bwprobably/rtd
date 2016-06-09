@@ -1,0 +1,2 @@
+class Live_Data
+end
