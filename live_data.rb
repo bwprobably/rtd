@@ -1,16 +1,18 @@
 class Live_Data
   
-  attr_accessor :trip_updates, :vehicle_updates
+  attr_accessor :trip_updates, :vehicle_updates, :vehicle_file, :trip_file
   
   # parse live data into dictionaries
   def initialize
-    vehicleFile = 'realtime/VehiclePosition.pb'
-    tripFile = 'realtime/TripUpdate.pb'
+    @vehicle_file = 'realtime/VehiclePosition.pb'
+    @trip_file = 'realtime/TripUpdate.pb'
+
+    download_data
 
     # parse vehicle positioning
 
     @trip_updates = Hash.new
-    data = File.open(vehicleFile, 'rb') { |io| io.read }
+    data = File.open(@vehicle_file, 'rb') { |io| io.read }
     feed = Transit_realtime::FeedMessage.decode(data)
     for e in feed.entity do
       if defined?(e.vehicle.trip.trip_id)
@@ -27,7 +29,7 @@ class Live_Data
 
     # parse trip updates
     @vehicle_updates = Hash.new
-    data = File.open(tripFile, 'rb') { |io| io.read }
+    data = File.open(@trip_file, 'rb') { |io| io.read }
     feed = Transit_realtime::FeedMessage.decode(data)
     for e in feed.entity do
       if defined?(e.trip_update.trip.trip_id)
@@ -38,6 +40,19 @@ class Live_Data
         @vehicle_updates[trip_id].append(e)
       end
     end
+  end
+
+  def download_data
+
+    # delete *.pb in directory
+
+    # authenticate credentials to google_sync
+
+    # download VehiclePosition.pb
+    # download TripUpdate.pb
+
+    puts '(skip download of live data)'
+
   end
 
 # get trip update if existing for vehicle

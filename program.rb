@@ -30,7 +30,7 @@ def print_vehicle_info(v)
     # elsif count == 0 #trip_id
     #   # printf "(%-4s) ", p
     #   printf ""
-    elsif count != 0
+    elsif count != 0 and count != 3
       printf "%-4s ", p
     end
     count += 1
@@ -41,10 +41,30 @@ schedule = Schedule.new
 live_data = Live_Data.new
 settings = Settings.new
 
+# use current time by default
+use_current_time = true
+
+# use morning or evening trip based on time of day
+set_trip = 'morning'
+if Time.now.strftime("%H").to_i > 12
+  set_trip = 'evening'
+end
+
+# first stop in trip uses current time
+#   subsequent stops use time_after setting
+first = true
 prior_time = ''
-settings.list['morning'].each{|s|
+
+# for each stop in trip setting
+settings.list[set_trip ].each{|s|
   setting = settings.parse_setting(s, prior_time)
   prior_time = setting.time
+
+  if (first and use_current_time) or setting.time.nil?
+    first = false
+    setting.time = Time.now
+    prior_time = setting.time
+  end
 
   # checking...
   puts "'#{setting.from}' to '#{setting.to}' at ~#{time_to_str(setting.time.strftime("%H:%M"))}"
@@ -103,6 +123,8 @@ settings.list['morning'].each{|s|
       print_vehicle_info(v)
       puts
     end
+
+    # next
 
     # if bus has live data, append live data
     if setting.type == 'bus' and !live_data.trip_updates[trip_id].nil?
