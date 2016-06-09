@@ -5,8 +5,10 @@ require 'uri'
 require 'awesome_print'
 require 'yaml'
 require "./schedule"
+require "./live_data"
 
 schedule = Schedule.new
+live_data = Live_Data.new
 
 def time_to_str(time)
   time = time.split(':')
@@ -22,97 +24,6 @@ def time_to_str(time)
   return "#{hours}:#{min}#{am_pm}"
 
 end
-
-# get trip update if existing for vehicle
-#   from live vehicle and trips
-def get_updates(v, trips)
-  vehicle_id = v.vehicle.vehicle.id
-  route_id = v.vehicle.trip.route_id
-  trip_id = v.vehicle.trip.trip_id
-
-  trips[route_id].each { |t|
-    if !t.trip_update.nil? && t.trip_update.vehicle && t.trip_update.vehicle.id == vehicle_id
-      trip_count = 0
-
-      t.trip_update.stop_time_update.each{|u|
-        stop_id = u.stop_id
-        puts "   Stop: #{schedule.get_stop_info_by_name(stop_id, "")[1]}"
-        puts "     Arrival: #{Time.at(u.arrival.time).strftime("%l:%M%p %m-%e-%y ")}"
-        trip_count += 1
-
-        if trip_count >= 2
-          break
-        end
-      }
-    end
-  }
-end
-
-$trip_live_data = ''
-$trip_live_data_updates = ''
-
-# parse live data into dictionaries
-def parse_live_data()
-  vehicleFile = 'realtime/VehiclePosition.pb'
-  tripFile = 'realtime/TripUpdate.pb'
-
-  # parse vehicle positioning
-  $trip_live_data = Hash.new
-  data = File.open(vehicleFile, 'rb') { |io| io.read }
-  feed = Transit_realtime::FeedMessage.decode(data)
-  for e in feed.entity do
-    if defined?(e.vehicle.trip.trip_id)
-      trip_id = e.vehicle.trip.trip_id
-      if !$trip_live_data.has_key?(trip_id)
-        $trip_live_data[trip_id] = []
-      end
-      $trip_live_data[trip_id].append(e)
-    end
-
-    # ap $trip_live_data
-    # exit
-  end
-
-  # parse trip updates
-  $trip_live_data_updates = Hash.new
-  data = File.open(tripFile, 'rb') { |io| io.read }
-  feed = Transit_realtime::FeedMessage.decode(data)
-  for e in feed.entity do
-    if defined?(e.trip_update.trip.trip_id)
-      trip_id = e.trip_update.trip.trip_id
-      if !$trip_live_data_updates.has_key?(trip_id)
-        $trip_live_data_updates[trip_id] = []
-      end
-      $trip_live_data_updates[trip_id].append(e)
-    end
-  end
-
-
-
-  # search_route = 'FF3'
-  # if $trip_live_data.keys.include?(search_route) && trip_updates.keys.include?(search_route)
-  #   puts "Found #{search_route}: Vehicles: #{$trip_live_data[search_route].count}, Trips: #{$trip_live_data_updates[search_route].count}"
-  #   count = 0
-  #   $trip_live_data[search_route].each { |v|
-  #     stop_id = v.vehicle.stop_id
-  #     print "[#{count}] "
-  #     puts "vehicle id: #{v.id} (#{v.vehicle.vehicle.id})"
-  #     puts "   trip_id: #{v.vehicle.trip.trip_id}"
-  #     # puts "   direction_id: #{v.vehicle.trip.direction_id}"
-  #     #puts "   Stop: #{schedule.get_stop_info_by_name(stop_id)[1]}"
-  #     puts "   gps: #{v.vehicle.position.latitude},#{v.vehicle.position.longitude}"
-  #     puts "   status: #{v.vehicle.current_status}"
-  #     get_updates(v, $trip_live_data_updates)
-  #     count += 1
-  #   }
-  # end
-end
-
-
-
-
-
-
 
 def print_vehicle_info(v, count)
   v.each{
@@ -136,15 +47,8 @@ fullPath = "./"
 settings = YAML.load_file(fullPath+'settings.yml')
 $favorite_routes = settings['favorites'].split(',')
 
-parse_live_data()
-
-
-# current_time = Time.now
-
-
-
 prior_time = ''
-settings['evening'].each{|s|
+settings['morning'].each{|s|
 
   # parse settings
   from = s[1]['from']
@@ -246,16 +150,17 @@ settings['evening'].each{|s|
       puts
     end
 
-    if type == 'bus' and !$trip_live_data[trip_id].nil?
-      v_id = $trip_live_data[trip_id][0]['vehicle']['label']
-      time_stamp = $trip_live_data[trip_id][0]['vehicle']['timestamp']
 
-      count = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'].size
-      sequence = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_sequence']
-      last_sequnce = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'][count-1]['stop_sequence']
+    if type == 'bus' and !live_data.trip_updates[trip_id].nil?
+      v_id = live_data.trip_updates[trip_id][0]['vehicle']['label']
+      time_stamp = live_data.trip_updates[trip_id][0]['vehicle']['timestamp']
+
+      count = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'].size
+      sequence = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_sequence']
+      last_sequnce = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'][count-1]['stop_sequence']
 
 
-      stop_id = $trip_live_data_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_id']
+      stop_id = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_id']
       stop_info = schedule.get_stop_info_by_id(stop_id)
       stop_name = stop_info[1]
 
