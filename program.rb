@@ -119,6 +119,7 @@ settings.list[set_trip ].each{|s|
     trip_id = v[0]
 
     # print information
+    # currently trains do not have live data
     if setting.type == 'train'
       print_vehicle_info(v)
       puts
