@@ -87,14 +87,20 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
   # sort vehicles sort by arrival time
   vehicles = vehicles.sort_by{|v| v[2]}
 
+  count = 1
+
   # loop each vehicle
   vehicles.each{|v|
     trip_id = v[0]
+
+    print "(#{count}) "
+    count += 1
 
     # print information
     # currently trains do not have live data
     if type == 'train'
       print_vehicle_info(v)
+      puts
     end
 
     # next
