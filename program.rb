@@ -105,8 +105,9 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
 
     # next
 
+
     # if bus has live data, append live data
-    if type == 'bus' and !live_data.trip_updates[trip_id].nil?
+    if type == 'bus' and !live_data.vehicle_updates.nil? and !live_data.trip_updates.nil?  and !live_data.trip_updates[trip_id].nil?
       v_id = live_data.trip_updates[trip_id][0]['vehicle']['label']
       time_stamp = live_data.trip_updates[trip_id][0]['vehicle']['timestamp']
 
@@ -219,3 +220,6 @@ settings.list[set_trip ].each{|s|
   print_trip_info(setting.from, setting.to, setting.time, setting.dir, setting.type, schedule, live_data, settings.list['favorites'])
 
 }
+
+# remove live data for next run
+live_data.delete_live_data

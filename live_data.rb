@@ -13,6 +13,12 @@ class Live_Data
 
     download_data
 
+    if !File.exists?(@vehicle_file) or !File.exist?(@trip_file)
+      return
+    end
+
+
+
     # parse vehicle positioning
 
     @trip_updates = Hash.new
@@ -46,27 +52,38 @@ class Live_Data
     end
   end
 
+  def delete_live_data
+    # delete *.pb in directory
+    if File.exists?(@vehicle_file)
+      File.delete(@vehicle_file)
+    end
+
+    if File.exists?(@trip_file)
+      File.delete(@trip_file)
+    end
+  end
+
   def download_data
     url = 'http://www.rtd-denver.com/google_sync/'
 
-    # delete *.pb in directory
-    if File.exists?(vehicle_file)
-      File.delete(vehicle_file)
-    end
-    if File.exist?(trip_file)
-      File.delete(trip_file)
-    end
+    delete_live_data
 
     vehicle_url = File.join(url, 'VehiclePosition.pb')
     trip_url = File.join(url, 'TripUpdate.pb')
 
-    # download VehiclePosition.pb
-    open(@vehicle_file,"w").write(open(vehicle_url,:http_basic_authentication =>
-        [@user,@pass]).read)
+    begin
+      # download VehiclePosition.pb
+      open(@vehicle_file,"w").write(open(vehicle_url,:http_basic_authentication =>
+          [@user,@pass]).read)
 
-    # download TripUpdate.pb
-    open(@trip_file,"w").write(open(trip_url,:http_basic_authentication =>
-        [@user,@pass]).read)
+      # download TripUpdate.pb
+      open(@trip_file,"w").write(open(trip_url,:http_basic_authentication =>
+          [@user,@pass]).read)
+    rescue
+      puts '(offline - unable to download data)'
+
+      delete_live_data #download failed, remove empty files
+    end
 
   end
 
