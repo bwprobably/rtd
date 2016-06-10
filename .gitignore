@@ -5,3 +5,4 @@ realtime3
 backup
 test.rb
 *.yml
+realtime/*.pb

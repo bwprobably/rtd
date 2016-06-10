@@ -95,7 +95,6 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
     # currently trains do not have live data
     if type == 'train'
       print_vehicle_info(v)
-      puts
     end
 
     # next
@@ -121,6 +120,9 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
 
       print_vehicle_info(v)
 
+      if dir.nil?
+        # unknown direction
+      end
 
 
       # bus is at stop
