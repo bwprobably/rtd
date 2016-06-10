@@ -207,7 +207,7 @@ settings.list[set_trip ].each{|s|
   setting = settings.parse_setting(s, prior_time)
   prior_time = setting.time
 
-  if override_time
+  if override_time and first
     first = false
     setting.time = override_time_value
     prior_time = setting.time
