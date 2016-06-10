@@ -1,11 +1,15 @@
+require 'open-uri'
+
 class Live_Data
   
-  attr_accessor :trip_updates, :vehicle_updates, :vehicle_file, :trip_file
+  attr_accessor :trip_updates, :vehicle_updates, :vehicle_file, :trip_file, :user, :pass
   
   # parse live data into dictionaries
-  def initialize
+  def initialize(user, pass)
     @vehicle_file = 'realtime/VehiclePosition.pb'
     @trip_file = 'realtime/TripUpdate.pb'
+    @user = user
+    @pass = pass
 
     download_data
 
@@ -43,15 +47,26 @@ class Live_Data
   end
 
   def download_data
+    url = 'http://www.rtd-denver.com/google_sync/'
 
     # delete *.pb in directory
+    if File.exists?(vehicle_file)
+      File.delete(vehicle_file)
+    end
+    if File.exist?(trip_file)
+      File.delete(trip_file)
+    end
 
-    # authenticate credentials to google_sync
+    vehicle_url = File.join(url, 'VehiclePosition.pb')
+    trip_url = File.join(url, 'TripUpdate.pb')
 
     # download VehiclePosition.pb
-    # download TripUpdate.pb
+    open(@vehicle_file,"w").write(open(vehicle_url,:http_basic_authentication =>
+        [@user,@pass]).read)
 
-    puts '(skip download of live data)'
+    # download TripUpdate.pb
+    open(@trip_file,"w").write(open(trip_url,:http_basic_authentication =>
+        [@user,@pass]).read)
 
   end
 

@@ -37,43 +37,15 @@ def print_vehicle_info(v)
   }
 end
 
-schedule = Schedule.new
-live_data = Live_Data.new
-settings = Settings.new
-
-# use current time by default
-use_current_time = true
-
-# use morning or evening trip based on time of day
-set_trip = 'morning'
-if Time.now.strftime("%H").to_i > 12
-  set_trip = 'evening'
-end
-
-# first stop in trip uses current time
-#   subsequent stops use time_after setting
-first = true
-prior_time = ''
-
-# for each stop in trip setting
-settings.list[set_trip ].each{|s|
-  setting = settings.parse_setting(s, prior_time)
-  prior_time = setting.time
-
-  if (first and use_current_time) or setting.time.nil?
-    first = false
-    setting.time = Time.now
-    prior_time = setting.time
-  end
-
+def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
   # checking...
-  puts "'#{setting.from}' to '#{setting.to}' at ~#{time_to_str(setting.time.strftime("%H:%M"))}"
+  puts "'#{from}' to '#{to}' at ~#{time_to_str(time.strftime("%H:%M"))}"
 
   # get stop(s) for starting point
   # this is a really inefficient way to do this
   # I shouldn't be checking all stops, but only stops involved in my trip's destination
   # Little tricky to ask
-  stops = schedule.get_stop_info_by_name(setting.from, setting.dir)
+  stops = schedule.get_stop_info_by_name(from, dir)
 
   vehicles = []
 
@@ -81,7 +53,7 @@ settings.list[set_trip ].each{|s|
     stop_id = s[0]
 
     # get trips near time
-    trips = schedule.get_trips_near_time(stop_id, setting.time, setting.type)
+    trips = schedule.get_trips_near_time(stop_id, time, type)
 
     # for each tri[]
     trips.each{ |t|
@@ -92,11 +64,12 @@ settings.list[set_trip ].each{|s|
       trip_info = schedule.get_trip_info(trip_id)
       route_id = trip_info[0]
 
+
       # if going the direction we're going and the route includes a favorited stop
-      if setting.dir == trip_info[4] and settings.favorites.include?(route_id)
+      if (dir.nil? or dir == trip_info[4]) and (favorites.nil? or favorites.include?(route_id))
 
         # check if actually heading to destination
-        result = schedule.heading_to_destination?(trip_id, setting.to, setting.dir)
+        result = schedule.heading_to_destination?(trip_id, to, dir)
 
         # trip is scheduled to our destination
         if !result[0].nil?
@@ -114,13 +87,13 @@ settings.list[set_trip ].each{|s|
   # sort vehicles sort by arrival time
   vehicles = vehicles.sort_by{|v| v[2]}
 
-  # loop each vehcile
+  # loop each vehicle
   vehicles.each{|v|
     trip_id = v[0]
 
     # print information
     # currently trains do not have live data
-    if setting.type == 'train'
+    if type == 'train'
       print_vehicle_info(v)
       puts
     end
@@ -128,7 +101,7 @@ settings.list[set_trip ].each{|s|
     # next
 
     # if bus has live data, append live data
-    if setting.type == 'bus' and !live_data.trip_updates[trip_id].nil?
+    if type == 'bus' and !live_data.trip_updates[trip_id].nil?
       v_id = live_data.trip_updates[trip_id][0]['vehicle']['label']
       time_stamp = live_data.trip_updates[trip_id][0]['vehicle']['timestamp']
 
@@ -141,27 +114,100 @@ settings.list[set_trip ].each{|s|
       stop_name = stop_info[1]
 
       # skip if live bus data has passed our destination
-      if stop_name.include?(setting.to)
+      if stop_name.include?(to)
         next
         # puts "\n    PAST STOP"
       end
 
       print_vehicle_info(v)
 
-      # live data found, print
-      print "\n    LIVE: #{Time.at(time_stamp).strftime("%l:%M%p")} "
-      print "(#{sequence}/#{last_sequence}) "
-      print stop_name
+
 
       # bus is at stop
-      if stop_name.include?(setting.from)
-        print "\n    CURRENTLY AT STOP"
+      if stop_name.include?(from)
+        print "AT STOP NOW"
+      else
+        # live data found, print
+        print "\LIVE: #{Time.at(time_stamp).strftime("%l:%M%p")} "
+        print "(#{sequence}/#{last_sequence}) "
+        print stop_name
       end
+
+
       puts
-    elsif setting.type == 'bus'
+    elsif type == 'bus'
       print_vehicle_info(v)
       puts
     end
   }
   puts "\n"
+end
+
+schedule = Schedule.new
+settings = Settings.new
+live_data = Live_Data.new(settings.list['api']['user'], settings.list['api']['password'])
+
+# use current time by default
+use_current_time = true
+
+# use morning or evening trip based on time of day
+set_trip = 'work'
+if Time.now.strftime("%H").to_i > 12
+  set_trip = 'home'
+end
+
+override_time = false
+override_time_value = ''
+
+if ARGV.count() == 1
+  # specify saved route
+  set_trip = ARGV[0]
+elsif ARGV.count() == 2
+  # specify saved route and time
+  set_trip = ARGV[0]
+
+  begin
+    override_time = true
+    override_time_value = Time.parse(ARGV[1])
+  rescue
+    override_time = false
+  end
+
+  if not override_time
+    from = ARGV[0]
+    to = ARGV[1]
+
+    print_trip_info(from, to, Time.now, nil, 'bus', schedule, live_data, nil)
+    exit
+  end
+
+end
+
+# first stop in trip uses current time
+#   subsequent stops use time_after setting
+first = true
+prior_time = ''
+
+if settings.list[set_trip].nil?
+  puts 'Saved route not found.'
+  exit
+end
+
+# for each stop in trip setting
+settings.list[set_trip ].each{|s|
+  setting = settings.parse_setting(s, prior_time)
+  prior_time = setting.time
+
+  if override_time
+    first = false
+    setting.time = override_time_value
+    prior_time = setting.time
+  elsif (first and use_current_time) or setting.time.nil?
+    first = false
+    setting.time = Time.now
+    prior_time = setting.time
+  end
+
+  print_trip_info(setting.from, setting.to, setting.time, setting.dir, setting.type, schedule, live_data, settings.list['favorites'])
+
 }
