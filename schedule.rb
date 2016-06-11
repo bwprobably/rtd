@@ -7,7 +7,7 @@ class Schedule
   def initialize
     sql_file = '/home/christopher/rtd/schedule.db'
     sql_ram = '/mnt/ramdisk/schedule.db'
-    
+
     if !File.exists?(sql_ram) and File.exists?(sql_file)
       FileUtils.cp(sql_file, sql_ram)
     elsif !File.exists?(sql_file)

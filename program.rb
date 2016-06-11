@@ -1,3 +1,4 @@
+#!/usr/bin/env ruby
 require 'protobuf'
 require 'google/transit/gtfs-realtime.pb'
 require 'net/http'
