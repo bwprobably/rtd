@@ -6,8 +6,8 @@ class Live_Data
   
   # parse live data into dictionaries
   def initialize(user, pass)
-    @vehicle_file = 'realtime/VehiclePosition.pb'
-    @trip_file = 'realtime/TripUpdate.pb'
+    @vehicle_file = '/mnt/ramdisk/VehiclePosition.pb'
+    @trip_file = '/mnt/ramdisk/TripUpdate.pb'
     @user = user
     @pass = pass
 
@@ -16,8 +16,6 @@ class Live_Data
     if !File.exists?(@vehicle_file) or !File.exist?(@trip_file)
       return
     end
-
-
 
     # parse vehicle positioning
 

@@ -1,10 +1,21 @@
 require 'sqlite3'
+require 'fileutils'
 
 class Schedule
 
   # load database from file
   def initialize
-    @db = SQLite3::Database.open 'schedule.db'
+    sql_file = '/home/christopher/rtd/schedule.db'
+    sql_ram = '/mnt/ramdisk/schedule.db'
+    
+    if !File.exists?(sql_ram) and File.exists?(sql_file)
+      FileUtils.cp(sql_file, sql_ram)
+    elsif !File.exists?(sql_file)
+      puts 'Cannot find scheduling data'
+      exit
+    end
+
+    @db = SQLite3::Database.open sql_ram
     @buffer_bus = 400
     @buffer_train = 1000
   end
