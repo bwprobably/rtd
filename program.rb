@@ -62,25 +62,28 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
       # get trip info
       trip_id = t[0]
       arrival_time = t[1]
+      
       trip_info = schedule.get_trip_info(trip_id)
-      route_id = trip_info[0]
+      
+      if !trip_info.nil?
+        route_id = trip_info[0]
 
+        # if going the direction we're going and the route includes a favorited stop
+        if (dir.nil? or dir == trip_info[4]) and (favorites.nil? or favorites.include?(route_id))
 
-      # if going the direction we're going and the route includes a favorited stop
-      if (dir.nil? or dir == trip_info[4]) and (favorites.nil? or favorites.include?(route_id))
+            # check if actually heading to destination
+            result = schedule.heading_to_destination?(trip_id, to, dir)
 
-        # check if actually heading to destination
-        result = schedule.heading_to_destination?(trip_id, to, dir)
+            # trip is scheduled to our destination
+            if !result[0].nil?
+            day = trip_info[1];
 
-        # trip is scheduled to our destination
-        if !result[0].nil?
-          day = trip_info[1];
-
-          # add to vehicles found
-          if day != 'SA' and day != 'SU' and day != 'FR'
-            vehicles.append([trip_id, route_id, arrival_time[0..-4], day])
-          end
-        end
+            # add to vehicles found
+            if day != 'SA' and day != 'SU' and day != 'FR'
+                vehicles.append([trip_id, route_id, arrival_time[0..-4], day])
+            end
+            end
+        end 
       end
     }
   }
@@ -204,7 +207,7 @@ if settings.list[set_trip].nil?
 end
 
 # for each stop in trip setting
-settings.list[set_trip ].each{|s|
+settings.list[set_trip].each{|s|
   setting = settings.parse_setting(s, prior_time)
   prior_time = setting.time
 
@@ -219,7 +222,6 @@ settings.list[set_trip ].each{|s|
   end
 
   print_trip_info(setting.from, setting.to, setting.time, setting.dir, setting.type, schedule, live_data, settings.list['favorites'])
-
 }
 
 # remove live data for next run
