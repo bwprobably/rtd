@@ -50,6 +50,11 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
 
   vehicles = []
 
+  # until I figure out why the fuck I'm getting duplicates (on same day)
+  #   I'm skipping every other match. The 2nd hit matches with live data.
+  #   would be nice to remove this for performance ~C 
+  skip_add_every_other = true
+
   stops.each{|s|
     stop_id = s[0]
 
@@ -66,22 +71,26 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
       trip_info = schedule.get_trip_info(trip_id)
       
       if !trip_info.nil?
-        route_id = trip_info[0]
-
+        route_id = trip_info[1]
+        
         # if going the direction we're going and the route includes a favorited stop
-        if (dir.nil? or dir == trip_info[4]) and (favorites.nil? or favorites.include?(route_id))
+        if (dir.nil? or dir == trip_info[2]) and (favorites.nil? or favorites.include?(route_id))
 
             # check if actually heading to destination
             result = schedule.heading_to_destination?(trip_id, to, dir)
 
             # trip is scheduled to our destination
             if !result[0].nil?
-            day = trip_info[1];
-
-            # add to vehicles found
-            if day != 'SA' and day != 'SU' and day != 'FR'
-                vehicles.append([trip_id, route_id, arrival_time[0..-4], day])
-            end
+              day = trip_info[5];
+              # add to vehicles found
+              if day.start_with?('WK') || day.start_with?('MT') #|| day.start_with?('FR')
+                if skip_add_every_other
+                  skip_add_every_other = false
+                elsif
+                  vehicles.append([trip_id, route_id, arrival_time[0..-4], day])
+                  skip_add_every_other = true
+                end
+              end
             end
         end 
       end
@@ -107,21 +116,18 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
       puts
     end
 
-    # next
-
-
     # if bus has live data, append live data
     if type == 'bus' and !live_data.vehicle_updates.nil? and !live_data.trip_updates.nil?  and !live_data.trip_updates[trip_id].nil?
       v_id = live_data.trip_updates[trip_id][0]['vehicle']['label']
       time_stamp = live_data.trip_updates[trip_id][0]['vehicle']['timestamp']
 
-      count = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'].size
+      size = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'].size
       sequence = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_sequence']
-      last_sequence = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'][count-1]['stop_sequence']
+      last_sequence = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'][size-1]['stop_sequence']
 
       stop_id = live_data.vehicle_updates[trip_id][0]['trip_update']['stop_time_update'][0]['stop_id']
       stop_info = schedule.get_stop_info_by_id(stop_id)
-      stop_name = stop_info[1]
+      stop_name = stop_info[8]
 
       # skip if live bus data has passed our destination
       if stop_name.include?(to)
@@ -208,6 +214,7 @@ end
 
 # for each stop in trip setting
 settings.list[set_trip].each{|s|
+
   setting = settings.parse_setting(s, prior_time)
   prior_time = setting.time
 

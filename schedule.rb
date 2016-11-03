@@ -61,7 +61,7 @@ class Schedule
   # get trip info
   #   from trip_id
   def get_trip_info(trip_id)
-    sql = "select * from trips where trip_id = #{trip_id}"
+    sql = "select * from trips where trip_id like '#{trip_id}%'"
     return @db.execute(sql)[0]
   end
 
