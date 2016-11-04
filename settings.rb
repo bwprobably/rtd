@@ -3,7 +3,7 @@ class Settings
   attr_accessor :favorites, :list
 
   def initialize
-    fullPath = "./"
+    fullPath = "/home/christopher/repo/rtd/"
     settings = YAML.load_file(fullPath+'settings.yml')
     @favorites = settings['favorites'].split(',')
     @list = settings

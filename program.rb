@@ -5,9 +5,9 @@ require 'net/http'
 require 'uri'
 require 'awesome_print'
 require 'yaml'
-require "./schedule"
-require "./live_data"
-require "./settings"
+require "/home/christopher/repo/rtd/schedule"
+require "/home/christopher/repo/rtd/live_data"
+require "/home/christopher/repo/rtd/settings"
 
 # convert time to readable format
 def time_to_str(time)
@@ -40,7 +40,7 @@ end
 
 def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
   # checking...
-  puts "'#{from}' to '#{to}' at ~#{time_to_str(time.strftime("%H:%M"))}"
+  puts "'#{from}' to '#{to}' at ~#{time_to_str(time.strftime("%H:%M"))}<br>"
 
   # get stop(s) for starting point
   # this is a really inefficient way to do this
@@ -158,8 +158,9 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
       print_vehicle_info(v)
       puts
     end
+    puts '<br>'
   }
-  puts "\n"
+  puts '<br>'
 end
 
 schedule = Schedule.new
