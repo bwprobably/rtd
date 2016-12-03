@@ -85,3 +85,11 @@ api:
   user: ####
   password: ####
 ```
+[PushOver](https://pushover.net/) Messagging Support:
+APP_TOKEN and USER_KEY needed.
+```
+pushover:
+  apitoken: ####
+  userkey: ####
+```
+

@@ -2,6 +2,7 @@
 require 'protobuf'
 require 'google/transit/gtfs-realtime.pb'
 require 'net/http'
+require "net/https"
 require 'uri'
 require 'awesome_print'
 require 'yaml'
@@ -40,7 +41,7 @@ end
 
 def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
   # checking...
-  puts "'#{from}' to '#{to}' at ~#{time_to_str(time.strftime("%H:%M"))}<br>"
+  puts "'#{from}' to '#{to}' at ~#{time_to_str(time.strftime("%H:%M"))}"
 
   # get stop(s) for starting point
   # this is a really inefficient way to do this
@@ -132,7 +133,7 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
       # skip if live bus data has passed our destination
       if stop_name.include?(to)
         next
-        # puts "\n    PAST STOP"
+        # puts "    PAST STOP"
       end
 
       print_vehicle_info(v)
@@ -158,79 +159,118 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
       print_vehicle_info(v)
       puts
     end
-    puts '<br>'
+    puts ''
   }
-  puts '<br>'
+  puts ''
 end
 
-schedule = Schedule.new
-settings = Settings.new
-live_data = Live_Data.new(settings.list['api']['user'], settings.list['api']['password'])
-
-# use current time by default
-use_current_time = true
-
-# use morning or evening trip based on time of day
-set_trip = 'work'
-if Time.now.strftime("%H").to_i > 12
-  set_trip = 'home'
-end
-
-override_time = false
-override_time_value = ''
-
-if ARGV.count() == 1
-  # specify saved route
-  set_trip = ARGV[0]
-elsif ARGV.count() == 2
-  # specify saved route and time
-  set_trip = ARGV[0]
-
-  begin
-    override_time = true
-    override_time_value = Time.parse(ARGV[1])
-  rescue
-    override_time = false
+def main()
+  schedule = Schedule.new
+  settings = Settings.new
+  live_data = Live_Data.new(settings.list['api']['user'], settings.list['api']['password'])
+  
+  # use current time by default
+  use_current_time = true
+  
+  # use morning or evening trip based on time of day
+  set_trip = 'work'
+  if Time.now.strftime("%H").to_i > 12
+    set_trip = 'home'
   end
-
-  if not override_time
-    from = ARGV[0]
-    to = ARGV[1]
-
-    print_trip_info(from, to, Time.now, nil, 'bus', schedule, live_data, nil)
+  
+  override_time = false
+  override_time_value = ''
+  
+  if ARGV.count() == 1
+    # specify saved route
+    set_trip = ARGV[0]
+  elsif ARGV.count() == 2
+    # specify saved route and time
+    set_trip = ARGV[0]
+  
+    begin
+      override_time = true
+      override_time_value = Time.parse(ARGV[1])
+    rescue
+      override_time = false
+    end
+  
+    if not override_time
+      from = ARGV[0]
+      to = ARGV[1]
+  
+      print_trip_info(from, to, Time.now, nil, 'bus', schedule, live_data, nil)
+      exit
+    end
+  
+  end
+  
+  # first stop in trip uses current time
+  #   subsequent stops use time_after setting
+  first = true
+  prior_time = ''
+  
+  if settings.list[set_trip].nil?
+    puts 'Saved route not found.'
     exit
   end
-
+  
+  # for each stop in trip setting
+  settings.list[set_trip].each{|s|
+  
+    setting = settings.parse_setting(s, prior_time)
+    prior_time = setting.time
+  
+    if override_time and first
+      first = false
+      setting.time = override_time_value
+      prior_time = setting.time
+    elsif (first and use_current_time) or setting.time.nil?
+      first = false
+      setting.time = Time.now
+      prior_time = setting.time
+    end
+  
+    print_trip_info(setting.from, setting.to, setting.time, setting.dir, setting.type, schedule, live_data, settings.list['favorites'])
+  }
+  
+  # remove live data for next run
+  live_data.delete_live_data
 end
 
-# first stop in trip uses current time
-#   subsequent stops use time_after setting
-first = true
-prior_time = ''
-
-if settings.list[set_trip].nil?
-  puts 'Saved route not found.'
-  exit
-end
-
-# for each stop in trip setting
-settings.list[set_trip].each{|s|
-
-  setting = settings.parse_setting(s, prior_time)
-  prior_time = setting.time
-
-  if override_time and first
-    first = false
-    setting.time = override_time_value
-    prior_time = setting.time
-  elsif (first and use_current_time) or setting.time.nil?
-    first = false
-    setting.time = Time.now
-    prior_time = setting.time
+def with_captured_stdout
+  begin
+    old_stdout = $stdout
+    $stdout = StringIO.new('','w')
+    yield
+    $stdout.string
+  ensure
+    $stdout = old_stdout
   end
+end
 
-  print_trip_info(setting.from, setting.to, setting.time, setting.dir, setting.type, schedule, live_data, settings.list['favorites'])
-}
+def pushover(apptoken, usertoken, message)
+  puts '\nResponding via pushover.'
+  url = URI.parse("https://api.pushover.net/1/messages.json")
+  req = Net::HTTP::Post.new(url.path)
+  req.set_form_data({
+    :token => apptoken,
+    :user => usertoken,
+    :message => message,
+  })
+  res = Net::HTTP.new(url.host, url.port)
+  res.use_ssl = true
+  res.verify_mode = OpenSSL::SSL::VERIFY_PEER
+  res.start {|http| http.request(req) }
+end
 
-# remove live data for next run
-live_data.delete_live_data
+result = with_captured_stdout{main()}
+puts result
+
+# if pushover setting exists, respond via pushover
+settings = Settings.new
+if !settings.list['pushover'].nil?
+  apitoken = settings.list['pushover']['apitoken']
+  usertoken = settings.list['pushover']['userkey']
+  pushover(apitoken, usertoken, result)
+end
