@@ -41,6 +41,7 @@ end
 
 def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
   # checking...
+  
   puts "'#{from}' to '#{to}' at ~#{time_to_str(time.strftime("%H:%M"))}"
 
   # get stop(s) for starting point
@@ -88,7 +89,8 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
                 if skip_add_every_other
                   skip_add_every_other = false
                 elsif
-                  vehicles.append([trip_id, route_id, arrival_time[0..-4], day])
+                  stop_info = schedule.get_stop_info_by_id(stop_id)
+                  vehicles.append([trip_id, route_id, arrival_time[0..-4], day, stop_info[8]])
                   skip_add_every_other = true
                 end
               end
@@ -159,9 +161,7 @@ def print_trip_info(from, to, time, dir, type, schedule, live_data, favorites)
       print_vehicle_info(v)
       puts
     end
-    puts ''
   }
-  puts ''
 end
 
 def main()
@@ -214,12 +214,16 @@ def main()
     puts 'Saved route not found.'
     exit
   end
-  
+
   # for each stop in trip setting
   settings.list[set_trip].each{|s|
   
     setting = settings.parse_setting(s, prior_time)
     prior_time = setting.time
+    
+    if !first
+      puts
+    end
   
     if override_time and first
       first = false
@@ -230,7 +234,7 @@ def main()
       setting.time = Time.now
       prior_time = setting.time
     end
-  
+    
     print_trip_info(setting.from, setting.to, setting.time, setting.dir, setting.type, schedule, live_data, settings.list['favorites'])
   }
   
@@ -250,7 +254,8 @@ def with_captured_stdout
 end
 
 def pushover(apptoken, usertoken, message)
-  puts '\nResponding via pushover.'
+  puts
+  puts 'Responding via pushover.'
   url = URI.parse("https://api.pushover.net/1/messages.json")
   req = Net::HTTP::Post.new(url.path)
   req.set_form_data({
